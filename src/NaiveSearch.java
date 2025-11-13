@@ -1,4 +1,4 @@
-public class NaiveSearch {
+class NaiveSearch {
 
     private String text;
     private String pattern;
@@ -6,112 +6,164 @@ public class NaiveSearch {
     private int patternLength;
     private int textIndex;
     private int patternIndex;
-    private int status; // 0 = running, 1 = found, -1 = not found
+    private int status; // 0 = běží, 1 = nalezen, -1 = nenalezen
     private int startPosition;
+    private int step;
+    private String currentStepDescription = "";
 
-    // STEP 0 – Input reading
+    public NaiveSearch() {
+        step = 0;
+    }
+
     public void step0_readInput(String t, String p) {
         this.text = t;
         this.pattern = p;
-        step1_initializeVariables();
+        this.step = 1;
     }
 
-    // STEP 1 – Initialize variables
-    public void step1_initializeVariables() {
+    public void executeStep() {
+        switch (step) {
+            case 1 -> {
+                initializeVariables();
+                currentStepDescription = "initializeVariables – inicializuji proměnné";
+            }
+            case 2 -> {
+                outerLoop();
+                currentStepDescription = "outerLoop – kontroluji pozici textu";
+            }
+            case 3 -> {
+                savePosition();
+                currentStepDescription = "savePosition – ukládám startovní pozici";
+            }
+            case 4 -> {
+                innerLoop();
+                currentStepDescription = "innerLoop – kontroluji znaky vzoru";
+            }
+            case 5 -> {
+                compareCharacters();
+                currentStepDescription = "compareCharacters – porovnávám písmenka";
+            }
+            case 6 -> {
+                match();
+                currentStepDescription = "match – znak odpovídá, posouvám indexy";
+            }
+            case 8 -> {
+                endOfText();
+                currentStepDescription = "endOfText – konec textu, vzor nenalezen";
+            }
+            case 9 -> {
+                mismatch();
+                currentStepDescription = "mismatch – písmena nesouhlasí, posouvám start";
+            }
+            case 10 -> {
+                end();
+                currentStepDescription = "end – algoritmus dokončen";
+            }
+        }
+    }
+
+    private void initializeVariables() {
         textLength = text.length();
         patternLength = pattern.length();
         textIndex = 0;
         status = 0;
-        step2_outerLoop();
+        step = 2;
     }
 
-    // STEP 2 – Outer loop
-    public void step2_outerLoop() {
-        while (status == 0) {
-
-            // If remaining text is shorter than pattern → stop
-            if (textIndex > textLength - patternLength) {
-                status = -1;
-                break;
-            }
-
-            step3_savePosition();
-            step4_innerLoop();
-        }
-        step10_end();
-    }
-
-    // STEP 3 – Save current position
-    public void step3_savePosition() {
-        startPosition = textIndex;
-        patternIndex = 0;
-    }
-
-    // STEP 4 – Inner loop
-    public void step4_innerLoop() {
-        while (true) {
-            step5_compareCharacters();
-            if (status == 1 || status == -1) return;
-            if (patternIndex == 0) return; // mismatch → back to outer loop
-        }
-    }
-
-    // STEP 5 – Compare characters
-    public void step5_compareCharacters() {
-        if (textIndex >= textLength) {
-            step8_endOfText();
+    private void outerLoop() {
+        if (status != 0) {
+            step = 10;
             return;
         }
+        if (textIndex > textLength - patternLength) {
+            status = -1;
+            step = 10;
+            return;
+        }
+        step = 3;
+    }
 
+    private void savePosition() {
+        startPosition = textIndex;
+        patternIndex = 0;
+        step = 4;
+    }
+
+    private void innerLoop() {
+        if (status != 0) {
+            step = 10;
+            return;
+        }
+        if (patternIndex < patternLength && textIndex < textLength) {
+            step = 5;
+        } else if (patternIndex == patternLength) {
+            status = 1;
+            step = 10;
+        } else {
+            step = 2;
+        }
+    }
+
+    private void compareCharacters() {
+        if (textIndex >= textLength) {
+            step = 8;
+            return;
+        }
         char textChar = text.charAt(textIndex);
         char patternChar = pattern.charAt(patternIndex);
-
         if (textChar == patternChar) {
-            step6_match();
+            step = 6;
         } else {
-            step9_mismatch();
+            step = 9;
         }
     }
 
-    // STEP 6 – Match
-    public void step6_match() {
+    private void match() {
         textIndex++;
         patternIndex++;
-        step7_checkEndOfPattern();
-    }
-
-    // STEP 7 – Check if pattern is fully matched
-    public void step7_checkEndOfPattern() {
         if (patternIndex == patternLength) {
             status = 1;
+            step = 10;
+        } else {
+            step = 5;
         }
     }
 
-    // STEP 8 – End of text
-    public void step8_endOfText() {
+    private void endOfText() {
         status = -1;
+        step = 10;
     }
 
-    // STEP 9 – Mismatch
-    public void step9_mismatch() {
+    private void mismatch() {
         textIndex = startPosition + 1;
         patternIndex = 0;
+        step = 2;
     }
 
-    // STEP 10 – End
-    public void step10_end() {
-        if (status == 1) {
-            System.out.println("✅ The pattern was found at position: " + startPosition);
-        } else {
-            System.out.println("❌ The pattern was not found.");
-        }
+    private void end() {
+        // konec
     }
 
-    // Test
-    public static void main(String[] args) {
-        NaiveSearch algorithm = new NaiveSearch();
-        String text = "This is a simple test text for pattern searching.";
-        String pattern = "test";
-        algorithm.step0_readInput(text, pattern);
+    // === Uložení stavu ===
+    public State saveState() {
+        return new State(textIndex, patternIndex, startPosition, step, status);
+    }
+
+    public void restoreState(State s) {
+        this.textIndex = s.textIndex;
+        this.patternIndex = s.patternIndex;
+        this.startPosition = s.startPosition;
+        this.step = s.step;
+        this.status = s.status;
+    }
+
+    // === Gettery ===
+    public int getTextIndex() { return textIndex; }
+    public int getPatternIndex() { return patternIndex; }
+    public int getStartPosition() { return startPosition; }
+    public int getStatus() { return status; }
+    public int getPatternLength() { return patternLength; }
+    public String getStepDescription() {
+        return currentStepDescription;
     }
 }
