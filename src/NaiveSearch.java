@@ -1,3 +1,5 @@
+import java.util.Stack;
+
 class NaiveSearch {
 
     private String text;
@@ -10,6 +12,7 @@ class NaiveSearch {
     private int startPosition;
     private int step;
     private String currentStepDescription = "";
+    private Stack<State> history = new Stack<>();
 
     public NaiveSearch() {
         step = 0;
@@ -22,6 +25,10 @@ class NaiveSearch {
     }
 
     public void executeStep() {
+        if (status != 0) return;
+
+        // Save the current state before making changes
+        history.push(saveState());
         switch (step) {
             case 1 -> {
                 initializeVariables();
@@ -150,11 +157,22 @@ class NaiveSearch {
     }
 
     public void restoreState(State s) {
-        this.textIndex = s.textIndex;
-        this.patternIndex = s.patternIndex;
-        this.startPosition = s.startPosition;
-        this.step = s.step;
-        this.status = s.status;
+        this.textIndex = s.getTextIndex();
+        this.patternIndex = s.getPatternIndex();
+        this.startPosition = s.getStartPosition();
+        this.step = s.getStep();
+        this.status = s.getStatus();
+    }
+
+    public void undoStep() {
+        if (history != null && !history.isEmpty()) {
+            State previousState = history.pop();
+            this.textIndex = previousState.getTextIndex();
+            this.patternIndex = previousState.getPatternIndex();
+            this.startPosition = previousState.getStartPosition();
+            this.step = previousState.getStep();
+            this.status = previousState.getStatus();
+        }
     }
 
     // === Gettery ===
@@ -166,4 +184,6 @@ class NaiveSearch {
     public String getStepDescription() {
         return currentStepDescription;
     }
+    public Stack<State> getHistory() {return history;}
+    public boolean hasHistory() {return history != null && !history.isEmpty();}
 }

@@ -27,59 +27,89 @@ public class GUI extends JFrame {
         this.setSize(450, 300);
         this.setVisible(true);
 
-        // Vypnutí nepotřebných tlačítek na začátku
-        btDalsi.setEnabled(false);
-        btPredchozi.setEnabled(false);
-        btZnova.setEnabled(false);
+        // Disable unnecessary buttons at the start
+        setButtonStates(false, false, false);
         txStav.setEditable(false);
     }
 
     private void initListeners() {
-        // === Tlačítko "Vyhledat" ===
-        btVyhledat.addActionListener(e -> {
-            String text = textArea1.getText();
-            String pattern = textField1.getText();
+        btVyhledat.addActionListener(e -> handleVyhledat());
+        btDalsi.addActionListener(e -> handleDalsi());
+        btPredchozi.addActionListener(e -> handlePredchozi());
+        btZnova.addActionListener(e -> handleZnova());
+        btKonec.addActionListener(e -> handleKonec());
+    }
 
-            if (text.isEmpty() || pattern.isEmpty()) {
-                JOptionPane.showMessageDialog(this, "Zadej text a hledaný vzor.");
-                return;
-            }
+    private void handleVyhledat() {
+        String text = textArea1.getText();
+        String pattern = textField1.getText();
 
-            algorithm = new NaiveSearch();
-            algorithm.step0_readInput(text, pattern);
+        if (text.isEmpty() || pattern.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Zadej text a hledaný vzor.");
+            return;
+        }
 
-            btDalsi.setEnabled(true);
-            btVyhledat.setEnabled(false);
-            btZnova.setEnabled(true);
-            clearHighlights();
-            highlightCurrentCharacter();
-        });
+        algorithm = new NaiveSearch();
+        algorithm.step0_readInput(text, pattern);
 
-        // === Tlačítko "Další" ===
-        btDalsi.addActionListener(e -> {
-            if (algorithm == null) return;
+        setButtonStates(true, false, true);
+        clearHighlights();
+        highlightCurrentCharacter();
+    }
 
-            algorithm.executeStep();
-            highlightCurrentCharacter();
+    private void handleDalsi() {
+        if (algorithm == null) return;
 
-            if (algorithm.getStatus() != 0) {
-                btDalsi.setEnabled(false);
-                JOptionPane.showMessageDialog(this,
-                        algorithm.getStatus() == 1 ?
-                                "✅ Vzor nalezen na pozici: " + algorithm.getStartPosition() :
-                                "❌ Vzor nebyl nalezen.");
-            }
-        });
+        algorithm.executeStep();
+        highlightCurrentCharacter();
 
-        // === Tlačítko "Znova" ===
-        btZnova.addActionListener(e -> {
-            clearHighlights();
-            btVyhledat.setEnabled(true);
+        // Update button states
+        btPredchozi.setEnabled(algorithm.hasHistory());
+        if (algorithm.getStatus() != 0) {
             btDalsi.setEnabled(false);
-        });
+            JOptionPane.showMessageDialog(this,
+                    algorithm.getStatus() == 1 ?
+                            "✅ Vzor nalezen na pozici: " + algorithm.getStartPosition() :
+                            "❌ Vzor nebyl nalezen.");
+        }
+    }
 
-        // === Tlačítko "Konec" ===
-        btKonec.addActionListener(e -> System.exit(0));
+    private void handlePredchozi() {
+        if (algorithm == null) return;
+
+        algorithm.undoStep();
+        highlightCurrentCharacter();
+
+        // Update button states
+        btPredchozi.setEnabled(algorithm.hasHistory());
+        btDalsi.setEnabled(algorithm.getStatus() == 0);
+    }
+
+    private void handleZnova() {
+        clearHighlights();
+        setButtonStates(false, false, false);
+        btVyhledat.setEnabled(true);
+    }
+
+    private void handleKonec() {
+        if (algorithm != null) {
+            while (algorithm.getStatus() == 0) {
+                algorithm.executeStep();
+            }
+            highlightCurrentCharacter();
+
+            String message = (algorithm.getStatus() == 1) ?
+                    "✅ Vzor nalezen na pozici: " + algorithm.getStartPosition() :
+                    "❌ Vzor nebyl nalezen.";
+            JOptionPane.showMessageDialog(this, message);
+        }
+        System.exit(0);
+    }
+
+    private void setButtonStates(boolean dalsi, boolean predchozi, boolean znova) {
+        btDalsi.setEnabled(dalsi);
+        btPredchozi.setEnabled(predchozi);
+        btZnova.setEnabled(znova);
     }
 
     private void clearHighlights() {
@@ -98,28 +128,22 @@ public class GUI extends JFrame {
             int patternLen = algorithm.getPatternLength();
             int status = algorithm.getStatus();
 
-            // Zobrazení aktuálního kroku v txStav
+            // Display the current step in txStav
             txStav.setText(algorithm.getStepDescription());
 
             if (status == 1) {
-                // Zelené zvýraznění nalezeného vzoru
                 highlighter.addHighlight(startPos, startPos + patternLen,
                         new DefaultHighlighter.DefaultHighlightPainter(Color.GREEN));
             } else if (status == -1) {
-                // Konec – nic nenalezeno
                 highlighter.addHighlight(0, 0, new DefaultHighlighter.DefaultHighlightPainter(Color.WHITE));
-            } else {
-                // Žluté zvýraznění aktuálního porovnávaného znaku
-                if (textIndex < textArea1.getText().length()) {
-                    highlighter.addHighlight(textIndex, textIndex + 1,
-                            new DefaultHighlighter.DefaultHighlightPainter(Color.YELLOW));
-                }
+            } else if (textIndex < textArea1.getText().length()) {
+                highlighter.addHighlight(textIndex, textIndex + 1,
+                        new DefaultHighlighter.DefaultHighlightPainter(Color.YELLOW));
             }
         } catch (BadLocationException ex) {
             ex.printStackTrace();
         }
     }
-
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(GUI::new);
